@@ -14,3 +14,5 @@
 .motion-toggle{font-size:10px;min-height:36px}.mode-button{min-height:44px}
 
 .room-app[data-mode=gaming] .scene-bottom strong,.room-app[data-mode=talk] .scene-bottom strong{color:#141522;text-shadow:none;-webkit-text-stroke:0}
+
+.strip-window{overflow:hidden;padding:16px 0}.tonearm>path:first-child{fill:none}
