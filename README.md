@@ -1,39 +1,32 @@
-# Freq — Live is better with company.
+# Freq — Don’t just watch. Pull up.
 
-An editorial redesign of the existing getfreq.app landing page, October 20, 2026.
+Bold live-entertainment landing revision, October 20, 2026. This supersedes the cream editorial design rejected by the owner.
 
 ## Direction
 
-Warm paper, dark ink, restrained violet and coral; large serif typography; an original typographic invitation; small line illustrations. No generated people, invented creators, testimonials, user counts, fake live rooms, or simulated social interactions. Music, gaming and conversation are framed as intended uses. Prelaunch status is explicit.
+Dark ink, coral and electric blue. Oversized Barlow condensed typography. A large illustrated live-room concept switches between music, gaming and conversation. No generated faces, fake people, fabricated viewer counts, testimonials or live broadcasts. Concept status and prelaunch status remain explicit. The decorative record/equalizer animation is pausable and automatically disabled for reduced-motion preferences.
 
-## Build
+## Build and test
 
-- `src/index.template.html`: accessible page content and metadata.
-- `src/styles.css`: responsive layout, focus treatments, and reduced-motion support.
-- `src/app.js`: existing Mailchimp waitlist with verified response states.
-- `scripts/build.mjs`: dependency-free build.
-- `assets/fonts/Manrope.ttf`: retained body font, with OFL license.
-- `assets/freq-social.png`: new text-only social-sharing graphic, no stock or generated faces.
+`node scripts/build.mjs` builds the production `index.html`.
+`node scripts/build.mjs --portable` builds a self-contained `Freq-Design-Review.html`.
+`node --check src/app.js`, `node tests/check-interactions.cjs` and `python3 tests/check-static.py` validate the implementation. Tests mock all submissions. Never submit synthetic email addresses to the real form.
 
-Run `node scripts/build.mjs` to write `index.html`. Run `node scripts/build.mjs --portable` for a self-contained `Freq-Design-Review.html` with embedded font. The portable file still uses the real Mailchimp waitlist: do not submit a test email to it.
-
-Publish `index.html` and `assets/`. The existing GitHub/Vercel project and domain stay unchanged.
-
-## Tests
-
-Run `node --check src/app.js`, `node tests/check-interactions.cjs`, and `python3 tests/check-static.py`. Tests mock all network requests; no real signup is sent. They cover validation, honeypot, duplicate submission, callback identity, success, already-subscribed responses, provider failure, timeout, stale responses, and no-JavaScript form fallback. Browser QA is recorded separately in the release report.
+Source is in `src/`; production publishes `index.html` and `assets/`. Manrope and Barlow font licenses are bundled. The social image contains original typography/graphics only. No imagegen portraits or stock imagery are used.
 
 ## Preserved integrations
 
 - Repository: https://github.com/CamLewis2k/freq-landing
-- Vercel project: `prj_g2IJPI69OnBCqKL57axDVp8RXvae`
-- Production: https://www.getfreq.app/
-- Original Mailchimp form endpoint, audience IDs, and honeypot unchanged.
-- Original Instagram and TikTok links unchanged.
-- No analytics, credentials, new providers, DNS changes, or security setting changes.
+- Vercel project: prj_g2IJPI69OnBCqKL57axDVp8RXvae
+- Live URL: https://www.getfreq.app/
+- Original Mailchimp audience, form action, honeypot and callback-confirmed states.
+- Existing Instagram and TikTok links.
+- No credentials, access settings, analytics, DNS, native-app or private-pilot changes.
 
-## Release and rollback
+The room selector is a local design preview only. It does not connect to a stream, send requests to creators, create accounts or store preferences.
 
-This redesign begins from verified production commit `09cd51df971bbb43c036bac031b7826a2faac111` and deployment `dpl_BPsUHb8v5bGsqUwnHZcE4SgKEuuy`. The previous source remains recoverable through Git history. Use the authenticated Vercel default scope with the exact project ID; do not substitute a new hosting project. Existing preview URLs require Vercel login. Do not disable protection to test a preview.
+## Baseline and rollback
 
-The native Expo app and private live-pilot Site are separate projects and are not changed by this landing release.
+This revision starts from production commit `4d18edf187c2872d77c23f83aed158907dab631a`, deployment `dpl_4E3piu6YusvPtZNQ3eBMZcEyjvFk`. The older midnight/violet portrait design remains in commit `09cd51df971bbb43c036bac031b7826a2faac111`, deployment `dpl_BPsUHb8v5bGsqUwnHZcE4SgKEuuy`.
+
+Use the existing authenticated Vercel default scope and exact project ID. Existing preview deployments require login; do not alter protection. Browser QA and final deployment identity are reported in the release conversation. Production-first visual verification is authorized because the supported cloud browser cannot reach the local executor and preview SSO is retained.

@@ -7,11 +7,14 @@ const vm = require('node:vm');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../src/app.js'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.template.html'), 'utf8');
+const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
 const audience = {u:'c9d1c6436ce253c18651cf98d', id:'af8427abca', f_id:'00b41ce1f0'};
 
 function setup(options = {}) {
   class Element {
-    constructor(){this.dataset={};this.handlers={};this.textContent='';this.value='';this.disabled=false;this.children=[];}
+    constructor(){this.dataset={};this.attributes={};this.handlers={};this.textContent='';this.innerHTML='';this.value='';this.disabled=false;this.children=[];this.classes=new Set();this.classList={toggle:(name,force)=>{const enabled=force===undefined?!this.classes.has(name):force;if(enabled)this.classes.add(name);else this.classes.delete(name);return enabled;},contains:name=>this.classes.has(name)};}
+    setAttribute(name,value){this.attributes[name]=String(value);}
+    getAttribute(name){return this.attributes[name]??null;}
     addEventListener(name, fn){(this.handlers[name]??=[]).push(fn);}
     fire(name){for(const fn of this.handlers[name]??[])fn({target:this,preventDefault(){}});}
     append(element){this.children.push(element);element.parent=this;}
@@ -19,7 +22,10 @@ function setup(options = {}) {
   }
   const elements={};
   const get=id=>elements[id]??=new Element();
-  const document={getElementById:get,head:new Element(),createElement:()=>new Element()};
+  const modeButtons=['music','gaming','talk'].map(mode=>{const button=new Element();button.dataset.mode=mode;button.setAttribute('aria-pressed',String(mode==='music'));return button;});
+  get('roomApp').dataset.mode='music';
+  get('motionToggle').setAttribute('aria-pressed','false');
+  const document={getElementById:get,querySelectorAll:selector=>selector==='.mode-button'?modeButtons:[],head:new Element(),createElement:()=>new Element()};
   let resets=0;
   get('waitlistForm').reportValidity=()=>options.valid!==false;
   get('waitlistForm').reset=()=>{resets++;get('waitlistEmail').value='';get('companyWebsite').value='';};
@@ -33,7 +39,7 @@ function setup(options = {}) {
   const request=()=>{const script=document.head.children.at(-1);assert.ok(script,'Expected a mocked JSONP request');const url=new URL(script.src);return {script,url,callback:url.searchParams.get('c')};};
   const response=value=>{const req=request();context[req.callback](value);return req;};
   const runTimer=ms=>{const entry=[...timers].find(([,t])=>t.ms===ms);assert.ok(entry,`Missing ${ms}ms timer`);timers.delete(entry[0]);entry[1].fn();};
-  return {get,document,context,timers,submit,request,response,runTimer,resets:()=>resets};
+  return {get,modeButtons,document,context,timers,submit,request,response,runTimer,resets:()=>resets};
 }
 
 let count=0;let failures=0;
@@ -58,7 +64,89 @@ test('callback stub is cleaned up after the late-response grace period',()=>{con
 test('no-JavaScript fallback is a direct POST to the unchanged Mailchimp form',()=>{const form=html.match(/<form\b[^>]*id="waitlistForm"[^>]*>/)?.[0];assert.ok(form);assert.match(form,/method="post"/i);const action=form.match(/action="([^"]+)"/)?.[1].replace(/&amp;/g,'&');const url=new URL(action);assert.equal(url.origin+url.pathname,'https://app.us11.list-manage.com/subscribe/post');for(const [key,value] of Object.entries(audience))assert.equal(url.searchParams.get(key),value);assert.match(html,/<input\b(?=[^>]*id="waitlistEmail")(?=[^>]*name="EMAIL")(?=[^>]*type="email")(?=[^>]*required)[^>]*>/);assert.match(html,/<button\b(?=[^>]*id="waitlistButton")(?=[^>]*type="submit")[^>]*>/);assert.match(html,/name="b_c9d1c6436ce253c18651cf98d_af8427abca"/);});
 test('visible form label, native details, and status semantics are present',()=>{assert.match(html,/<label for="waitlistEmail">Your email address<\/label>/);assert.match(html,/id="waitlistStatus" role="status" aria-live="polite"/);assert.match(html,/<details>\s*<summary>What am I signing up for\?<\/summary>/);});
 test('old fictional room and following features have been removed',()=>{assert.doesNotMatch(source+html,/Kairo|Val Arcade|Nia Afterhours|data-room=|data-vote=|followCreator|previewDialog|localStorage|creator-worlds-v3/);});
-test('prelaunch disclosures and no-account waitlist description remain visible in source',()=>{assert.match(html,/Not live yet\./);assert.match(html,/Freq isn’t live yet\./);assert.match(html,/not an account or a guarantee of early access/);assert.match(html,/A few possibilities, not a live schedule/);});
+test('prelaunch disclosures and no-account waitlist description remain visible in source',()=>{assert.match(html,/CONCEPT ROOM · NOT LIVE/);assert.match(html,/design preview, not a live stream/);assert.match(html,/Freq isn’t (?:live|broadcasting) yet/);assert.match(html,/not an account or a guarantee of early access/);assert.match(html,/There’s no launch date to announce yet/);});
+
+test('mode controls use native keyboard-operable buttons in a named group',()=>{
+  assert.match(html,/<div\b(?=[^>]*class="room-switcher")(?=[^>]*role="group")(?=[^>]*aria-label="Choose a concept room")[^>]*>/);
+  const buttons=[...html.matchAll(/<button\b(?=[^>]*class="mode-button")[^>]*>/g)].map(match=>match[0]);
+  assert.equal(buttons.length,3);
+  for(const [index,mode] of ['music','gaming','talk'].entries()){
+    assert.match(buttons[index],/type="button"/);
+    assert.ok(buttons[index].includes(`data-mode="${mode}"`));
+    assert.ok(buttons[index].includes(`aria-pressed="${index===0}"`));
+    assert.doesNotMatch(buttons[index],/disabled|tabindex="-1"/);
+  }
+});
+test('all concept modes update artwork state, explanatory copy, and one selected control',()=>{
+  const t=setup();
+  const expected={music:['MUSIC / AFTER DARK','AFTER<br />HOURS.','Music room concept'],gaming:['GAMING / NO BACKSEAT RULE','ONE MORE<br />ROUND.','Gaming room concept'],talk:['JUST TALKING / NO SCRIPT','STAY A<br />MINUTE.','Conversation room concept']};
+  for(const mode of ['gaming','talk','music']){
+    t.modeButtons.find(button=>button.dataset.mode===mode).fire('click');
+    assert.equal(t.get('roomApp').dataset.mode,mode);
+    assert.equal(t.get('sceneCategory').textContent,expected[mode][0]);
+    assert.equal(t.get('sceneTitle').innerHTML,expected[mode][1]);
+    assert.ok(t.get('roomMood').textContent.length>0);
+    assert.ok(t.get('roomContext').textContent.length>0);
+    const description=t.get('roomScene').getAttribute('aria-label');
+    assert.ok(description.startsWith(expected[mode][2]));
+    assert.match(description,/Not a real broadcast/);
+    assert.equal(t.get('roomStatus').textContent,description);
+    for(const button of t.modeButtons)assert.equal(button.getAttribute('aria-pressed'),String(button.dataset.mode===mode));
+    assert.equal(t.document.head.children.length,0,'Changing a concept must not send a signup or stream request');
+  }
+});
+test('repeated and rapid concept changes leave the final requested mode selected without timers',()=>{
+  const t=setup();
+  for(const mode of ['gaming','gaming','talk','music','talk'])t.modeButtons.find(button=>button.dataset.mode===mode).fire('click');
+  assert.equal(t.get('roomApp').dataset.mode,'talk');
+  assert.equal(t.modeButtons.filter(button=>button.getAttribute('aria-pressed')==='true').length,1);
+  assert.equal(t.timers.size,0);
+  assert.equal(t.document.head.children.length,0);
+  assert.equal(t.get('waitlistButton').disabled,false);
+});
+test('an unknown mode is ignored without corrupting the active concept',()=>{
+  const t=setup();t.modeButtons[1].fire('click');
+  const before=t.get('sceneTitle').innerHTML;
+  t.modeButtons[2].dataset.mode='invalid';t.modeButtons[2].fire('click');
+  assert.equal(t.get('roomApp').dataset.mode,'gaming');
+  assert.equal(t.get('sceneTitle').innerHTML,before);
+});
+test('pause and resume expose state and retain the pause across concept switches',()=>{
+  const t=setup(), toggle=t.get('motionToggle');toggle.fire('click');
+  assert.equal(toggle.getAttribute('aria-pressed'),'true');
+  assert.equal(toggle.getAttribute('aria-label'),'Resume decorative animation');
+  assert.equal(toggle.textContent,'Resume motion');
+  assert.equal(t.get('roomApp').classList.contains('motion-paused'),true);
+  t.modeButtons[1].fire('click');
+  assert.equal(t.get('roomApp').classList.contains('motion-paused'),true);
+  toggle.fire('click');
+  assert.equal(toggle.getAttribute('aria-pressed'),'false');
+  assert.equal(toggle.getAttribute('aria-label'),'Pause decorative animation');
+  assert.equal(toggle.textContent,'Pause motion');
+  assert.equal(t.get('roomApp').classList.contains('motion-paused'),false);
+  assert.equal(t.document.head.children.length,0);
+});
+test('concept switching remains independent from a pending waitlist request',()=>{
+  const t=setup();t.submit();const callback=t.request().callback;t.modeButtons[2].fire('click');
+  assert.equal(t.get('roomApp').dataset.mode,'talk');
+  assert.equal(t.get('waitlistButton').disabled,true);
+  assert.equal(t.document.head.children.length,1);
+  assert.equal(t.request().callback,callback);
+  t.response({result:'success'});
+  assert.equal(t.get('waitlistStatus').dataset.state,'success');
+  assert.equal(t.get('roomApp').dataset.mode,'talk');
+});
+test('scene semantics keep its pause button accessible and announce concept changes',()=>{
+  assert.match(html,/<div\b(?=[^>]*id="roomScene")(?=[^>]*role="group")[^>]*>/);
+  assert.match(html,/<button\b(?=[^>]*id="motionToggle")(?=[^>]*type="button")(?=[^>]*aria-pressed="false")(?=[^>]*aria-label="Pause decorative animation")[^>]*>/);
+  assert.match(html,/<p\b(?=[^>]*id="roomStatus")(?=[^>]*role="status")(?=[^>]*aria-live="polite")[^>]*>/);
+});
+test('reduced motion disables animations, transitions, and smooth scrolling; manual pause remains available otherwise',()=>{
+  const reduced=css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*)$/)?.[1];
+  assert.ok(reduced);assert.match(reduced,/scroll-behavior:\s*auto/);assert.match(reduced,/animation:\s*none!important/);assert.match(reduced,/transition:\s*none!important/);
+  assert.match(css,/\.room-app\.motion-paused\s*\*\s*\{animation-play-state:\s*paused!important/);
+  assert.match(css,/:focus-visible/);
+});
 
 console.log(`\n${count} checks passed; ${failures} failed. All requests mocked. No real signup sent.`);
 if(failures)process.exitCode=1;

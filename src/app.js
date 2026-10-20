@@ -1,4 +1,34 @@
+
 'use strict';
+// This changes an illustrated concept only. It never connects to a stream or sends a vote.
+const concepts = {
+  music: {category:'MUSIC / AFTER DARK', title:'AFTER<br />HOURS.', mood:'No playlist. Just good taste.', context:'A set, a room, and whatever comes next.', label:'Music room concept: an illustrated record spins above the words After hours. Not a real broadcast.'},
+  gaming: {category:'GAMING / NO BACKSEAT RULE', title:'ONE MORE<br />ROUND.', mood:'Great company. Questionable strategy.', context:'The best part isn’t always winning.', label:'Gaming room concept: an illustrated controller and the words One more round. Not a real broadcast.'},
+  talk: {category:'JUST TALKING / NO SCRIPT', title:'STAY A<br />MINUTE.', mood:'You had to hear the whole story.', context:'A conversation that goes wherever it goes.', label:'Conversation room concept: illustrated speech bubbles and the words Stay a minute. Not a real broadcast.'}
+};
+const roomApp=document.getElementById('roomApp');
+const modeButtons=document.querySelectorAll('.mode-button');
+function chooseConcept(mode){
+  const concept=concepts[mode];
+  if(!Object.prototype.hasOwnProperty.call(concepts,mode) || !roomApp)return;
+  roomApp.dataset.mode=mode;
+  document.getElementById('sceneCategory').textContent=concept.category;
+  document.getElementById('sceneTitle').innerHTML=concept.title;
+  document.getElementById('roomMood').textContent=concept.mood;
+  document.getElementById('roomContext').textContent=concept.context;
+  document.getElementById('roomScene').setAttribute('aria-label',concept.label);
+  modeButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.mode===mode)));
+  document.getElementById('roomStatus').textContent=concept.label;
+}
+modeButtons.forEach(button=>button.addEventListener('click',()=>chooseConcept(button.dataset.mode)));
+const motionToggle=document.getElementById('motionToggle');
+if(motionToggle)motionToggle.addEventListener('click',()=>{
+  const paused=motionToggle.getAttribute('aria-pressed')!=='true';
+  roomApp.classList.toggle('motion-paused',paused);
+  motionToggle.setAttribute('aria-pressed',String(paused));
+  motionToggle.setAttribute('aria-label',paused?'Resume decorative animation':'Pause decorative animation');
+  motionToggle.textContent=paused?'Resume motion':'Pause motion';
+});
 // Keep the original Mailchimp audience. Report success only after its callback.
 const form = document.getElementById("waitlistForm"),
   email = document.getElementById("waitlistEmail"),
